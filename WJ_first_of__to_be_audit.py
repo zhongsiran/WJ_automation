@@ -3,6 +3,7 @@ from selenium.webdriver.support.select import Select
 from selenium.webdriver.chrome.options import Options
 import time
 
+
 class WangJianAutomation:
     def __init__(self):
         self.b = ''
@@ -10,13 +11,14 @@ class WangJianAutomation:
         self.wj_sys_handle = ''
         self.frames_of_daiban_shixiang = 0
         self.frame_of_chuli_renwu = 0
-        self.frame_of_jiancha_duixiang_hecha= 0
-        
+        self.frame_of_jiancha_duixiang_hecha = 0
+
     def connect_to_existing_chrome(self):
         chrome_options = Options()
-        chrome_options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
+        chrome_options.add_experimental_option(
+            "debuggerAddress", "127.0.0.1:9222")
         self.b = webdriver.Chrome(options=chrome_options)
-    
+
     def switch_to_default(self):
         self.b.switch_to.window(self.wj_sys_handle)
         self.b.switch_to.default_content()
@@ -27,9 +29,10 @@ class WangJianAutomation:
             self.b.switch_to.window(h)
             if '广州市市场监督管理局网络交易监督管理系统' == self.b.title:
                 self.wj_sys_handle = h
-                self.b.switch_to.window(h)
+
                 print('设定了最后一个标题为“广州市市场监督管理局网络交易监督管理系统”的网页作为网监系统handle，数值为' + h)
                 self.sys_found = True
+        self.b.switch_to.window(self.wj_sys_handle)
 
     def wang_jian_system_login(self):
         if self.sys_found == False:
@@ -38,22 +41,26 @@ class WangJianAutomation:
             self.switch_to_default()
 
         try:
-            if self.b.find_element_by_id('navbar'): #有NAVBAR即是已经登录
+            if self.b.find_element_by_id('navbar'):  # 有NAVBAR即是已经登录
                 print('已经登录')
                 self.switch_to_default()
         except Exception as e:
             try:
-                self.b.find_element_by_xpath("//input[@placeholder='账号']").clear()
-                self.b.find_element_by_xpath("//input[@placeholder='账号']").send_keys('wjk_zsr')
-                self.b.find_element_by_xpath("//input[@placeholder='密码']").clear()
-                self.b.find_element_by_xpath("//input[@placeholder='密码']").send_keys('123456')
+                self.b.find_element_by_xpath(
+                    "//input[@placeholder='账号']").clear()
+                self.b.find_element_by_xpath(
+                    "//input[@placeholder='账号']").send_keys('wjk_zsr')
+                self.b.find_element_by_xpath(
+                    "//input[@placeholder='密码']").clear()
+                self.b.find_element_by_xpath(
+                    "//input[@placeholder='密码']").send_keys('123456')
                 self.b.find_element_by_xpath("//button").click()
                 time.sleep(3)
             except Exception as e:
                 print('尝试登录时的问题：')
                 print(e)
 
-    def frame_of_mission_list(self): 
+    def frame_of_mission_list(self):
         self.switch_to_default()
 
         outer_frame = self.b.find_elements_by_xpath("//iframe")
@@ -77,7 +84,7 @@ class WangJianAutomation:
         if self.b.find_elements_by_xpath("//iframe") == []:
             print('open first mission')
             self.open_first_mission()
-        
+
         inner_frame = self.b.find_elements_by_xpath("//iframe")
 
         try:
@@ -98,7 +105,7 @@ class WangJianAutomation:
             self.b.find_element_by_link_text('查询').click()
         except Exception as e:
             print(e)
-            print('“检查对象”页标签不可点击') 
+            print('“检查对象”页标签不可点击')
 
     def click_first_to_be_audit(self):
         try:
@@ -106,7 +113,7 @@ class WangJianAutomation:
             todos[0].click()
         except Exception as e:
             print(e)
-            print('尝试点击第一个锤子时出错') 
+            print('尝试点击第一个锤子时出错')
 
     def frame_of_audit_result_page(self):
         if self.b.find_elements_by_xpath("//iframe") == []:
@@ -140,34 +147,130 @@ class WangJianAutomation:
                 self.b.close()
         self.b.switch_to.window(self.wj_sys_handle)
 
-    def get_current_iframe(self):
-        frames = [self.frames_of_daiban_shixiang, self.frame_of_chuli_renwu, self.frame_of_jiancha_duixiang_hecha]
-        for idx, frame in enumerate(frames):
-            if self.b == frame:
-                print(idx)
-                
+    def set_website_property(self, property):
+        try:
+            property_radio_input = self.b.find_elements_by_xpath(
+                "//input[@name='websiteProperty'][@type='radio']")
+            if property == '1':
+                property_radio_input[1].click()
+            else:
+                property_radio_input[0].click()
+        except Exception as e:
+            print(e)
+            print('找不到经营性/非经营性选项')
+
+    def set_select_option(self, attr_name, display_name, option):
+        try:
+            business_type_option = self.b.find_element_by_xpath(
+                "//select[@name='%s']" % (attr_name))
+            Select(business_type_option).select_by_value(str(option))
+        except Exception as e:
+            print(e)
+            print('设置“%s”类型下拉菜单出错' % (display_name))
+
+    def set_radio_option(self, attr_name, display_name, option):
+        try:
+            option = int(option)
+        except Exception as e:
+            print(e)
+            print('转换“%s”选择为INT出错' % (display_name))
+
+        assert type(option) == int
+
+        try:
+            radio_input = self.b.find_elements_by_xpath(
+                "//input[@name='%s'][@type='radio']" % (attr_name))
+            radio_input[option].click()
+        except Exception as e:
+            print(e)
+            print('设置%s选项出错' % (display_name))
+
+    def get_dead_link(self):
+        try:
+            dead_link_radios = self.b.find_elements_by_xpath(
+                "//input[@name='isDead'][@type='radio']")
+            if dead_link_radios[1].is_selected():
+                print('dead')
+                return 'dead'
+            else:
+                print('live')
+                return 'not dead'
+        except Exception as e:
+            print(e)
+            print(dead_link_radios)
+            print('找不到死链接选项')
+
+    def audit(self, site_property=0, bt=3, st=1, signs=1, company_status=1, ads=0):
+
+        if self.get_dead_link() == 'not dead':
+            self.set_radio_option('auditStatus', '核查状态', ads)  # 0正常 1无效 2待复查
+            if ads == 0:  #核查状态正常时，下面为必填项
+                self.set_radio_option('signsLicenses', '亮标亮照', signs)  # 0否 1是
+                self.set_select_option(
+                    'companyStatus', '商事主体状态', company_status)  # 1正常 2查无 3吊销 4注销
+                self.set_radio_option('websiteProperty', '网站性质',
+                                      site_property)  # 0经营性 1非经营性
+                if property == 1:
+                    pass
+                else:
+                    self.set_select_option(
+                        'businessType', '电子商务类型', bt)
+                    if bt == 3:
+                        # 1自建 2平台 3平台内经营者 4信息发布平台 5其他
+                        self.set_select_option('shopType', '网店类型', st)
+
+        else:
+            self.set_radio_option('auditStatus', '核查状态', 1)  # 0正常 1无效 2待复查
+
 
 if __name__ == "__main__":
     auto = WangJianAutomation()
     auto.connect_to_existing_chrome()
-    auto.set_wj_sys_handle()
-    auto.wang_jian_system_login()
-    auto.set_wj_sys_handle()
-    auto.frame_of_mission_list()
 
-    # auto.open_first_mission()
-    auto.frame_of_inside_mission()
+    choice = ''
+    while 'q' not in choice:
 
-    time.sleep(2)
-    auto.switch_to_audit_list_and_filter()
+        print('选择程序')
+        choice = input()
+        # if choice == 'c':
+        # auto.connect_to_existing_chrome()
+        # auto.set_wj_sys_handle()
 
-    # auto.click_first_to_be_audit()
-    auto.frame_of_audit_result_page()
-    time.sleep(2)
-    auto.b.find_element_by_link_text("打开网页").click()
+        if choice == 'l':
+            auto.set_wj_sys_handle()
+            auto.wang_jian_system_login()
+            auto.set_wj_sys_handle()
+            auto.frame_of_mission_list()
+            auto.frame_of_inside_mission()
+            time.sleep(2)
+            auto.switch_to_audit_list_and_filter()
+
+        if choice == 'o':
+            auto.set_wj_sys_handle()
+            auto.frame_of_mission_list()
+            auto.frame_of_inside_mission()
+            time.sleep(2)
+            auto.switch_to_audit_list_and_filter()
+            auto.frame_of_audit_result_page()
+            time.sleep(2)
+
+        if choice == 'a':
+            auto.frame_of_mission_list()
+            auto.frame_of_inside_mission()
+            auto.switch_to_audit_list_and_filter()
+            auto.frame_of_audit_result_page()
+            auto.click_open_shop_url()
+
+        if choice == 'b':
+            auto.set_wj_sys_handle()
+
+        if choice == 'ca':
+            auto.close_other_windows()
+
+        if choice == 'f':
+            auto.audit(1,)
 
     # time.sleep(3)
     # auto.close_other_windows()
-
 
     print('完成')
