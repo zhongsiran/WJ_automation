@@ -1,4 +1,5 @@
 from selenium import webdriver
+import selenium.common.exceptions
 from selenium.webdriver.support.select import Select
 from selenium.webdriver.chrome.options import Options
 import time
@@ -8,10 +9,12 @@ class WangJianAutomation:
     def __init__(self):
         self.b = ''
         self.sys_found = False
+        self.gsxt_handle = ''
         self.wj_sys_handle = ''
         self.frames_of_daiban_shixiang = 0
         self.frame_of_chuli_renwu = 0
         self.frame_of_jiancha_duixiang_hecha = 0
+        self.credit_code = ''
 
     def connect_to_existing_chrome(self):
         chrome_options = Options()
@@ -23,6 +26,16 @@ class WangJianAutomation:
         self.b.switch_to.window(self.wj_sys_handle)
         self.b.switch_to.default_content()
         self.b.maximize_window()
+
+    def set_gsxt_handle(self):
+        for h in self.b.window_handles:
+            self.b.switch_to.window(h)
+            if '国家企业信用信息公示系统' == self.b.title:
+                self.gsxt_handle = h
+
+                print('设定了最后一个标题为“国家企业信用信息公示系统”的网页作为网监系统handle，数值为' + h)
+                self.sys_found = True
+        self.b.switch_to.window(self.gsxt_handle)
 
     def set_wj_sys_handle(self):
         for h in self.b.window_handles:
@@ -100,12 +113,15 @@ class WangJianAutomation:
     def switch_to_audit_list_and_filter(self):
         try:
             self.b.find_element_by_link_text('检查对象').click()
+        except selenium.common.exceptions.ElementClickInterceptedException as e:
+            print('“检查对象”页标签不可点击，可能已经进入下层页面，跳过点击步骤')
+        try:
             s = self.b.find_element_by_id("audit_status")
             Select(s).select_by_visible_text('待核查')
             self.b.find_element_by_link_text('查询').click()
         except Exception as e:
+            print('设置“待核查”时并查询时出错，可能已经进入下层页面，跳过点击步骤')
             print(e)
-            print('“检查对象”页标签不可点击')
 
     def click_first_to_be_audit(self):
         try:
@@ -140,10 +156,10 @@ class WangJianAutomation:
         self.b.find_element_by_link_text("打开网页").click()
 
     def close_other_windows(self):
-        self.b.switch_to.window(self.wj_sys_handle)
         for handle in self.b.window_handles:
             if handle != self.wj_sys_handle:
                 self.b.switch_to.window(handle)
+                time.sleep(0.3)
                 self.b.close()
         self.b.switch_to.window(self.wj_sys_handle)
 
@@ -185,6 +201,33 @@ class WangJianAutomation:
             print(e)
             print('设置%s选项出错' % (display_name))
 
+    def set_textarea(self, textarea_id, pt_idx=0, addition=''):
+        try:
+            target_textarea = self.b.find_element_by_xpath(
+                "//textarea[@id='%s']" % (textarea_id)
+            )
+        except selenium.common.exceptions.NoSuchElementException:
+            print('找不到id为%s的text area' % (textarea_id))
+
+        if textarea_id == 'opinion':
+            predefined_text_list = [
+                '核查通过。',
+                '经核查，该主体与网站（网店）实际开办者不符。',
+                '经核查，该主体已注销/已吊销。',
+                '经核查，该网站（网店）的网页无法正常打开。',
+                '经核查，该网店未发布商品信息，无经营活动迹象。',
+                '经核查，该网站（网店）有部分信息暂无法核实，拟作进一步调查。'
+            ]
+        elif textarea_id == 'remark':
+            predefined_text_list = [
+                ''
+            ]
+
+        try:
+            target_textarea.send_keys(predefined_text_list[pt_idx] + addition)
+        except Exception as e:
+            print(e)
+
     def get_dead_link(self):
         try:
             dead_link_radios = self.b.find_elements_by_xpath(
@@ -200,11 +243,43 @@ class WangJianAutomation:
             print(dead_link_radios)
             print('找不到死链接选项')
 
-    def audit(self, site_property=0, bt=3, st=1, signs=1, company_status=1, ads=0):
+    def get_credit_code(self):
+        try:
+            t = self.b.find_element_by_xpath(
+                "//input[@name='creditCode']"
+            )
+            self.b.execute_script(
+                "results = document.getElementsByName('creditCode');" +
+                "results[0].removeAttribute('readonly');" +
+                "results[0].select();" +
+                "document.execCommand('Copy');")
+            self.credit_code = t.get_attribute("value")
+            print('统一信用代码：' + self.credit_code)
+        except Exception as e:
+            print(e)
+
+    def switch_to_gsxt(self, ):
+        try:
+            if self.gsxt_handle != '':
+                self.b.switch_to.window(
+                    self.gsxt_handle
+                )
+            else:
+                self.click_open_shop_url()
+                self.b.switch_to.window(self.b.window_handles[
+                        len(self.b.window_handles) - 1])
+                self.b.get("http://www.gsxt.gov.cn")
+
+            self.b.find_element_by_xpath(
+                "//input[@name='searchword'][@id='keyword']").send_keys(self.credit_code)
+        except Exception as e:
+            print(e)
+
+    def audit(self, ads=0, site_property=0, signs=1, company_status=1, bt=3, st=1):
 
         if self.get_dead_link() == 'not dead':
             self.set_radio_option('auditStatus', '核查状态', ads)  # 0正常 1无效 2待复查
-            if ads == 0:  #核查状态正常时，下面为必填项
+            if ads == 0:  # 核查状态正常时，下面为必填项
                 self.set_radio_option('signsLicenses', '亮标亮照', signs)  # 0否 1是
                 self.set_select_option(
                     'companyStatus', '商事主体状态', company_status)  # 1正常 2查无 3吊销 4注销
@@ -229,7 +304,7 @@ if __name__ == "__main__":
 
     choice = ''
     while 'q' not in choice:
-
+        print("*" * 20)
         print('选择程序')
         choice = input()
         # if choice == 'c':
@@ -252,6 +327,7 @@ if __name__ == "__main__":
             time.sleep(2)
             auto.switch_to_audit_list_and_filter()
             auto.frame_of_audit_result_page()
+            auto.get_credit_code()
             time.sleep(2)
 
         if choice == 'a':
@@ -259,7 +335,9 @@ if __name__ == "__main__":
             auto.frame_of_inside_mission()
             auto.switch_to_audit_list_and_filter()
             auto.frame_of_audit_result_page()
+            auto.get_credit_code()
             auto.click_open_shop_url()
+            auto.switch_to_gsxt()
 
         if choice == 'b':
             auto.set_wj_sys_handle()
@@ -268,9 +346,20 @@ if __name__ == "__main__":
             auto.close_other_windows()
 
         if choice == 'f':
-            auto.audit(1,)
+            auto.frame_of_mission_list()
+            auto.frame_of_inside_mission()
+            auto.switch_to_audit_list_and_filter()
+            auto.frame_of_audit_result_page()
+            auto.audit(0, 1, 0, 1)
+            auto.set_textarea('opinion')
+            print('正常，非经，无亮照，开业')
+            print('核查通过')
+        
+        if choice == 'gs':
+            auto.set_gsxt_handle()
 
     # time.sleep(3)
     # auto.close_other_windows()
-
+    print('=*=' * 6)
     print('完成')
+    print('=*=' * 6)
