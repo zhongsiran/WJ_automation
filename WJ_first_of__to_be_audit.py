@@ -15,6 +15,7 @@ class WangJianAutomation:
         self.frame_of_chuli_renwu = 0
         self.frame_of_jiancha_duixiang_hecha = 0
         self.credit_code = ''
+        self.com_name = ''
 
     def connect_to_existing_chrome(self):
         chrome_options = Options()
@@ -77,8 +78,8 @@ class WangJianAutomation:
         self.switch_to_default()
 
         outer_frame = self.b.find_elements_by_xpath("//iframe")
-        print(self.b.current_window_handle)
-        print(outer_frame)
+        # print(self.b.current_window_handle)
+        # print(outer_frame)
         try:
             self.b.switch_to.frame(outer_frame[0])
             self.b.find_element_by_id("toDoList")
@@ -120,8 +121,8 @@ class WangJianAutomation:
             Select(s).select_by_visible_text('待核查')
             self.b.find_element_by_link_text('查询').click()
         except Exception as e:
-            print('设置“待核查”时并查询时出错，可能已经进入下层页面，跳过点击步骤')
-            print(e)
+            print('123-设置“待核查”时并查询时出错，可能已经进入下层页面，跳过点击步骤')
+            # print(e)
 
     def click_first_to_be_audit(self):
         try:
@@ -148,6 +149,13 @@ class WangJianAutomation:
             print(e)
             exit(0)
 
+    def goto_core_frame(self, sleep_time=2):
+        self.frame_of_mission_list()
+        self.frame_of_inside_mission()
+        time.sleep(sleep_time)
+        self.switch_to_audit_list_and_filter()
+        self.frame_of_audit_result_page()
+
     def get_shop_url(self):
         shop_url = self.b.find_element_by_id('shopUrl')
         print(shop_url.get_attribute('value'))
@@ -155,12 +163,30 @@ class WangJianAutomation:
     def click_open_shop_url(self):
         self.b.find_element_by_link_text("打开网页").click()
 
+    def click_confirm_audit(self):
+        try:
+            self.b.find_element_by_link_text("确定核对").click()
+        except selenium.common.exceptions.NoSuchElementException:
+            self.goto_core_frame(0.1)
+            self.b.find_element_by_link_text("确定核对").click()
+
+    def click_confirm(self):
+        try:
+            self.b.find_element_by_link_text("确定").click()
+        except selenium.common.exceptions.NoSuchElementException:
+            self.goto_core_frame(0.1)
+            self.b.switch_to.parent_frame()
+            self.b.find_element_by_link_text("确定").click()
+
     def close_other_windows(self):
         for handle in self.b.window_handles:
             if handle != self.wj_sys_handle:
-                self.b.switch_to.window(handle)
-                time.sleep(0.3)
-                self.b.close()
+                if handle == self.gsxt_handle:
+                    pass
+                else:
+                    self.b.switch_to.window(handle)
+                    time.sleep(0.3)
+                    self.b.close()
         self.b.switch_to.window(self.wj_sys_handle)
 
     def set_website_property(self, property):
@@ -233,11 +259,28 @@ class WangJianAutomation:
             dead_link_radios = self.b.find_elements_by_xpath(
                 "//input[@name='isDead'][@type='radio']")
             if dead_link_radios[1].is_selected():
-                print('dead')
+                print('死链')
                 return 'dead'
-            else:
-                print('live')
+            elif dead_link_radios[0].is_selected():
+                print('非死链')
                 return 'not dead'
+            else:
+                print('死链选项未选择')
+                return 'blank'
+        except Exception as e:
+            print(e)
+            print(dead_link_radios)
+            print('找不到死链接选项')
+
+    def set_dead_link(self, dl_idx):
+        try:
+            dead_link_radios = self.b.find_elements_by_xpath(
+                "//input[@name='isDead'][@type='radio']")
+            try:
+                dead_link_radios[dl_idx].click()
+            except Exception as e:
+                print('error while setting dead link')
+                print(e)
         except Exception as e:
             print(e)
             print(dead_link_radios)
@@ -258,24 +301,46 @@ class WangJianAutomation:
         except Exception as e:
             print(e)
 
+    def get_company_name(self):
+        try:
+            t = self.b.find_element_by_xpath(
+                "//input[@name='companyName']"
+            )
+            self.b.execute_script(
+                "results = document.getElementsByName('companyName');" +
+                "results[0].removeAttribute('readonly');" +
+                "results[0].select();" +
+                "document.execCommand('Copy');")
+            self.com_name = t.get_attribute("value")
+            print('商事主体名称：' + self.com_name)
+        except Exception as e:
+            print(e)
+
     def switch_to_gsxt(self, ):
         try:
             if self.gsxt_handle != '':
                 self.b.switch_to.window(
                     self.gsxt_handle
                 )
+                self.b.find_element_by_xpath(
+                    "//input[@name='searchword'][@id='keyword']").send_keys(self.credit_code if self.credit_code else self.com_name)
             else:
-                self.click_open_shop_url()
+                print('随便点个链接')
+                self.b.find_element_by_xpath("//a").click()
+                print('切换到最新窗口')
                 self.b.switch_to.window(self.b.window_handles[
-                        len(self.b.window_handles) - 1])
+                    len(self.b.window_handles) - 1])
+                print('进入公示平台')
                 self.b.get("http://www.gsxt.gov.cn")
+                self.set_gsxt_handle()
 
-            self.b.find_element_by_xpath(
-                "//input[@name='searchword'][@id='keyword']").send_keys(self.credit_code)
         except Exception as e:
+            print('277')
             print(e)
 
-    def audit(self, ads=0, site_property=0, signs=1, company_status=1, bt=3, st=1):
+    def audit(self, ads=0, site_property=0, signs=1, company_status=1, bt=3, st=1, dl=0):
+        if self.get_dead_link() == 'blank':
+            self.set_dead_link(dl)
 
         if self.get_dead_link() == 'not dead':
             self.set_radio_option('auditStatus', '核查状态', ads)  # 0正常 1无效 2待复查
@@ -322,20 +387,28 @@ if __name__ == "__main__":
 
         if choice == 'o':
             auto.set_wj_sys_handle()
-            auto.frame_of_mission_list()
-            auto.frame_of_inside_mission()
-            time.sleep(2)
-            auto.switch_to_audit_list_and_filter()
-            auto.frame_of_audit_result_page()
+            auto.goto_core_frame()
             auto.get_credit_code()
+            if auto.credit_code == '':
+                auto.get_company_name()
             time.sleep(2)
 
-        if choice == 'a':
-            auto.frame_of_mission_list()
-            auto.frame_of_inside_mission()
-            auto.switch_to_audit_list_and_filter()
-            auto.frame_of_audit_result_page()
+        if choice == 'gsa':
+            auto.set_gsxt_handle()
+            auto.set_wj_sys_handle()
+            auto.goto_core_frame(0.1)
             auto.get_credit_code()
+            if auto.credit_code == '':
+                auto.get_company_name()
+            auto.click_open_shop_url()
+            auto.switch_to_gsxt()
+
+        if choice == 'a':
+            auto.set_wj_sys_handle()
+            auto.goto_core_frame(0.1)
+            auto.get_credit_code()
+            if auto.credit_code == '':
+                auto.get_company_name()
             auto.click_open_shop_url()
             auto.switch_to_gsxt()
 
@@ -345,16 +418,121 @@ if __name__ == "__main__":
         if choice == 'ca':
             auto.close_other_windows()
 
-        if choice == 'f':
-            auto.frame_of_mission_list()
-            auto.frame_of_inside_mission()
-            auto.switch_to_audit_list_and_filter()
-            auto.frame_of_audit_result_page()
+        # '核查通过。',
+        # '经核查，该主体与网站（网店）实际开办者不符。',
+        # '经核查，该主体已注销/已吊销。',
+        # '经核查，该网站（网店）的网页无法正常打开。',
+        # '经核查，该网店未发布商品信息，无经营活动迹象。',
+        # '经核查，该网站（网店）有部分信息暂无法核实，拟作进一步调查。'
+
+        if choice == 'f':  # 非经营
+            auto.goto_core_frame(0.1)
             auto.audit(0, 1, 0, 1)
             auto.set_textarea('opinion')
             print('正常，非经，无亮照，开业')
             print('核查通过')
-        
+
+        if choice == 'zz':  # 正常 自建
+            auto.goto_core_frame(0.1)
+            auto.audit(0, 0, 0, 1, 1, dl=0)
+            auto.set_textarea('opinion')
+            print('正常，经营性，无亮照，开业，自建')
+            print('核查通过')
+
+        if choice == 'zzc':  # 正常 自建
+            auto.goto_core_frame(0.1)
+            auto.audit(0, 0, 0, 1, 1, dl=0)
+            auto.set_textarea('opinion')
+            print('正常，经营性，无亮照，开业，自建')
+            print('核查通过')
+
+            auto.click_confirm_audit()
+            time.sleep(1)
+            auto.click_confirm()
+            
+
+        if choice == 'zx': #  正 三方
+            auto.goto_core_frame(0.1)
+            auto.audit(0, 0, 1, 1, dl=0)
+            auto.set_radio_option('isMatching', '主体资格', 0)
+            auto.set_textarea('opinion')
+            print('正常，经营性，亮照，开业，第三方， 平台内经营者')
+            print('核查通过')
+
+        if choice == 'zxc':
+            auto.goto_core_frame(0.1)
+            auto.audit(0, 0, 1, 1, dl=0)
+            auto.set_radio_option('isMatching', '主体资格', 0)
+            auto.set_textarea('opinion')
+            print('正常，经营性，亮照，开业，第三方， 平台内经营者')
+            print('核查通过')
+            
+            auto.click_confirm_audit()
+            time.sleep(1)
+            auto.click_confirm()
+
+        if choice == 'zw':  # 正 无
+            auto.goto_core_frame(0.1)
+            auto.audit(0, 0, 1, 1, dl=0)
+            auto.set_radio_option('isMatching', '主体资格', 0)
+            auto.set_textarea('opinion', 4)
+            print('正常，经营性，亮照，开业，第三方， 平台内经营者')
+            print('无商品')
+
+        if choice == 'zwc':
+            auto.goto_core_frame(0.1)
+            auto.audit(0, 0, 1, 1, dl=0)
+            auto.set_radio_option('isMatching', '主体资格', 0)
+            auto.set_textarea('opinion', 4)
+            print('正常，经营性，亮照，开业，第三方， 平台内经营者')
+            print('无商品')
+            auto.click_confirm_audit()
+            time.sleep(1)
+            auto.click_confirm()
+
+        if choice == 'zs':  # 正 商
+            auto.goto_core_frame(0.1)
+            auto.audit(0, 0, 1, 1, dl=0)
+            auto.set_radio_option('isMatching', '主体资格', 0)
+            auto.set_textarea('opinion', 4)
+            print('正常，经营性，亮照，开业，第三方， 平台内经营者')
+            print('无商品')
+
+        if choice == 'zsc':
+            auto.goto_core_frame(0.1)
+            auto.audit(0, 0, 1, 1, dl=0)
+            auto.set_radio_option('isMatching', '主体资格', 0)
+            auto.set_textarea('opinion')
+            auto.set_textarea('remark',0,'留意商标侵权')
+            print('正常，经营性，亮照，开业，第三方， 平台内经营者')
+            print('无商品')
+            auto.click_confirm_audit()
+            time.sleep(1)
+            auto.click_confirm()
+
+        if choice == 'wx':
+            auto.goto_core_frame(0.1)
+            auto.audit(1, dl=0)
+            auto.set_textarea('opinion', 3)
+            print('无效')
+            print('无法打开')
+
+        if choice == 'wxc':
+            auto.goto_core_frame(0.1)
+            auto.audit(1, dl=0)
+            auto.set_textarea('opinion', 3)
+            print('无效')
+            print('无法打开')
+            auto.click_confirm_audit()
+            time.sleep(1)
+            auto.click_confirm()
+
+        if choice == 'cf':
+            auto.b.switch_to.window(auto.wj_sys_handle)
+            auto.click_confirm_audit()
+            time.sleep(1)
+            auto.click_confirm()
+
         if choice == 'gs':
             auto.set_gsxt_handle()
 
