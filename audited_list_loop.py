@@ -14,7 +14,7 @@ if __name__ == "__main__":
         # auto.connect_to_existing_chrome()
         # auto.set_wj_sys_handle()
 
-        if choice == 'l':
+        if choice == 'l':  #  进入第一个待办任务的待核查列表
             auto.set_wj_sys_handle()
             auto.wang_jian_system_login()
             auto.set_wj_sys_handle()
