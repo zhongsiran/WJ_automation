@@ -28,6 +28,16 @@ if __name__ == "__main__":
             if auto.credit_code == '':
                 auto.get_company_name()
 
+        if choice == 'o10':
+            auto.set_wj_sys_handle()
+            for current_audit_idx in range(0,10):
+                auto.goto_core_frame(audit_idx=current_audit_idx)
+                auto.get_credit_code()
+                if auto.credit_code == '':
+                    auto.get_company_name()
+                auto.click_close_audit_icon()
+                time.sleep(1)
+
         if choice == 'cl':
             auto.click_close_audit_icon()
 

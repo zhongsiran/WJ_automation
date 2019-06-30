@@ -87,7 +87,7 @@ class AuditedListAutomation:
                     "//iframe[@src='modules/mainFile/trialFiles.html?menuId=G0401']")
                 self.first_layer_frame = outer_frame[0]
                 self.b.switch_to.frame(self.first_layer_frame)
-                print('进入“已审档案”iframe')
+                print('90:进入“已审档案”iframe')
             except Exception as e:
                 print('95')
                 print(e)
@@ -100,14 +100,15 @@ class AuditedListAutomation:
             todos[idx].click()
         except Exception as e:
             print(e)
-            print('尝试点击第%d个锤子时出错' % (idx))
+            # print('尝试点击第%d个锤子时出错' % (idx))
 
-    def frame_of_audit_result_page(self):
+    def frame_of_audit_result_page(self, audit_idx=0):
         if self.b.find_elements_by_xpath("//iframe[contains(@id,'frame')]") == []:
             print('107:未打开核查窗口，需要点击打开。')
-            self.click_item_to_be_audit(0, '修改')
+            self.click_item_to_be_audit(audit_idx, '修改')
 
-        result_frames = self.b.find_elements_by_xpath("//iframe[contains(@id,'frame')]")
+        result_frames = self.b.find_elements_by_xpath(
+            "//iframe[contains(@id,'frame')]")
 
         try:
             self.b.switch_to.frame(result_frames[0])
@@ -115,16 +116,16 @@ class AuditedListAutomation:
             print(result_frames[0])
             self.b.find_element_by_id("subjectAction")
             self.frame_of_jiancha_duixiang_hecha = result_frames[0]
-            print('进入“检查对象核查”iframe')
+            print('119:进入“检查对象核查”iframe')
         except Exception as e:
             print('找不到“检查对象核查”窗口')
             print(e)
             exit(0)
 
-    def goto_core_frame(self, sleep_time=2):
+    def goto_core_frame(self, sleep_time=2, audit_idx=0):
         self.goto_audited_list_frame()
         time.sleep(sleep_time)
-        self.frame_of_audit_result_page()
+        self.frame_of_audit_result_page(audit_idx)
 
     def get_shop_url(self):
         shop_url = self.b.find_element_by_id('shopUrl')
@@ -133,11 +134,11 @@ class AuditedListAutomation:
     # the icon is in the parent frame of the audit frame
     def click_close_audit_icon(self):
         try:
-            self.b.find_element_by_xpath("//a[@class='layui-layer-close']").click()
+            self.b.find_element_by_link_text("取消").click()
         except selenium.common.exceptions.NoSuchElementException:
-            print(130)
-            self.b.switch_to.parent_frame()
-            self.b.find_element_by_xpath("//a[@class='layui-layer-close']").click()
+            self.goto_core_frame(0.1)
+            print(140)
+            self.b.find_element_by_link_text("取消").click()
 
     def click_open_shop_url(self):
         self.b.find_element_by_link_text("打开网页").click()
@@ -146,20 +147,20 @@ class AuditedListAutomation:
         try:
             self.b.find_element_by_link_text("确定核对").click()
         except selenium.common.exceptions.NoSuchElementException:
-            self.goto_core_frame(1)
-            print(149)
+            self.goto_core_frame(0.1)
+            print(151)
             self.b.find_element_by_link_text("确定核对").click()
 
     def click_confirm(self):
         try:
             self.goto_core_frame(1)
+            print('156:goto parent frame')
             self.b.switch_to.parent_frame()
-            self.b.find_element_by_xpath("//a[contains(@class, 'layui')][text()='确定']").click()
+            self.b.find_element_by_xpath(
+                "//a[contains(@class, 'layui')][text()='确定']").click()
         except Exception as e:
             print(157, end=':')
             print(e)
-
-            
 
     def close_other_windows(self):
         for handle in self.b.window_handles:
