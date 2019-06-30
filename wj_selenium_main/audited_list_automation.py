@@ -153,6 +153,7 @@ class AuditedListAutomation:
 
     def click_confirm(self):
         try:
+            # 必须跑一遍所有frame,否则报错stale element
             self.goto_core_frame(1)
             print('156:goto parent frame')
             self.b.switch_to.parent_frame()

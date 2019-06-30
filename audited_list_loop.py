@@ -14,7 +14,7 @@ if __name__ == "__main__":
         # auto.connect_to_existing_chrome()
         # auto.set_wj_sys_handle()
 
-        if choice == 'l':  #  进入第一个待办任务的待核查列表
+        if choice == 'l':  # 进入第一个待办任务的待核查列表
             auto.set_wj_sys_handle()
             auto.wang_jian_system_login()
             auto.set_wj_sys_handle()
@@ -30,7 +30,7 @@ if __name__ == "__main__":
 
         if choice == 'o10':
             auto.set_wj_sys_handle()
-            for current_audit_idx in range(0,10):
+            for current_audit_idx in range(0, 10):
                 auto.goto_core_frame(audit_idx=current_audit_idx)
                 auto.get_credit_code()
                 if auto.credit_code == '':
@@ -46,9 +46,6 @@ if __name__ == "__main__":
             auto.click_confirm_audit()
             time.sleep(1)
             auto.click_confirm()
-
-        if choice == 'gs':
-            auto.set_gsxt_handle()
 
     # time.sleep(3)
     # auto.close_other_windows()
