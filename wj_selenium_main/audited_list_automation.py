@@ -11,8 +11,7 @@ class AuditedListAutomation:
         self.sys_found = False
         self.gsxt_handle = ''
         self.wj_sys_handle = ''
-        self.frames_of_daiban_shixiang = 0
-        self.frame_of_chuli_renwu = 0
+        self.first_layer_frame = 0
         self.frame_of_jiancha_duixiang_hecha = 0
         self.credit_code = ''
         self.com_name = ''
@@ -27,16 +26,6 @@ class AuditedListAutomation:
         self.b.switch_to.window(self.wj_sys_handle)
         self.b.switch_to.default_content()
         self.b.maximize_window()
-
-    def set_gsxt_handle(self):
-        for h in self.b.window_handles:
-            self.b.switch_to.window(h)
-            if '国家企业信用信息公示系统' == self.b.title:
-                self.gsxt_handle = h
-
-                print('设定了最后一个标题为“国家企业信用信息公示系统”的网页作为网监系统handle，数值为' + h)
-                self.sys_found = True
-        self.b.switch_to.window(self.gsxt_handle)
 
     def set_wj_sys_handle(self):
         for h in self.b.window_handles:
@@ -74,78 +63,58 @@ class AuditedListAutomation:
                 print('尝试登录时的问题：')
                 print(e)
 
-    def frame_of_mission_list(self):
+    def goto_audited_list_frame(self):
         self.switch_to_default()
 
-        outer_frame = self.b.find_elements_by_xpath("//iframe")
-        # print(self.b.current_window_handle)
-        # print(outer_frame)
-        try:
-            self.b.switch_to.frame(outer_frame[0])
-            self.b.find_element_by_id("toDoList")
-            self.frame_of_daiban_shixiang = outer_frame[0]
-            print('进入“待办事项”iframe')
-        except Exception as e:
-            print('找不到“待办事项”窗口')
-            print(e)
-            exit(0)
+        if self.first_layer_frame:
+            try:
+                self.b.switch_to.frame(self.first_layer_frame)
+            except Exception as e:
+                print(73)
+                print(e)
+        else:
+            #  点击 已审档案 按钮
+            try:
+                self.b.find_element_by_id('menuitemG0401').click()
+                verification = self.b.find_element_by_xpath(
+                    "//a[@href='#tab_menuitemG0401']")
+            except Exception as e:
+                print(82)
+                print(e)
+            try:
+                # 已审档案专属iframe,以scr确定
+                outer_frame = self.b.find_elements_by_xpath(
+                    "//iframe[@src='modules/mainFile/trialFiles.html?menuId=G0401']")
+                self.first_layer_frame = outer_frame[0]
+                self.b.switch_to.frame(self.first_layer_frame)
+                print('进入“已审档案”iframe')
+            except Exception as e:
+                print('95')
+                print(e)
+                exit(0)
 
-    def open_first_mission(self):
+    def click_item_to_be_audit(self, idx, title):
         try:
-            green_hammers = self.b.find_elements_by_xpath("//img[@title='处理']")
-            green_hammers[0].click()
-        except IndexError:
-            print('找不到绿色锤子')
-
-    def frame_of_inside_mission(self):
-        if self.b.find_elements_by_xpath("//iframe") == []:
-            print('open first mission')
-            self.open_first_mission()
-
-        inner_frame = self.b.find_elements_by_xpath("//iframe")
-
-        try:
-            self.b.switch_to.frame(inner_frame[0])
-            self.b.find_element_by_id("createTask")
-            self.frame_of_chuli_renwu = inner_frame[0]
-            print('进入“处理任务”iframe')
-        except Exception as e:
-            print('找不到“处理任务”窗口')
-            print(e)
-            exit(0)
-
-    def switch_to_audit_list_and_filter(self):
-        try:
-            self.b.find_element_by_link_text('检查对象').click()
-        except selenium.common.exceptions.ElementClickInterceptedException as e:
-            print('“检查对象”页标签不可点击，可能已经进入下层页面，跳过点击步骤')
-        try:
-            s = self.b.find_element_by_id("audit_status")
-            Select(s).select_by_visible_text('待核查')
-            self.b.find_element_by_link_text('查询').click()
-        except Exception as e:
-            print('123-设置“待核查”时并查询时出错，可能已经进入下层页面，跳过点击步骤')
-            # print(e)
-
-    def click_first_to_be_audit(self):
-        try:
-            todos = self.b.find_elements_by_xpath("//img[@title='核查']")
-            todos[0].click()
+            todos = self.b.find_elements_by_xpath(
+                "//img[@title='%s']" % (title))
+            todos[idx].click()
         except Exception as e:
             print(e)
-            print('尝试点击第一个锤子时出错')
+            print('尝试点击第%d个锤子时出错' % (idx))
 
     def frame_of_audit_result_page(self):
-        if self.b.find_elements_by_xpath("//iframe") == []:
-            self.switch_to_audit_list_and_filter()
-            self.click_first_to_be_audit()
+        if self.b.find_elements_by_xpath("//iframe[contains(@id,'frame')]") == []:
+            print('107:未打开核查窗口，需要点击打开。')
+            self.click_item_to_be_audit(0, '修改')
 
-        result_frame = self.b.find_elements_by_xpath("//iframe")
+        result_frames = self.b.find_elements_by_xpath("//iframe[contains(@id,'frame')]")
 
         try:
-            self.b.switch_to.frame(result_frame[0])
+            self.b.switch_to.frame(result_frames[0])
+            print('114:switching to audit page frame', end='')
+            print(result_frames[0])
             self.b.find_element_by_id("subjectAction")
-            self.frame_of_jiancha_duixiang_hecha = result_frame[0]
+            self.frame_of_jiancha_duixiang_hecha = result_frames[0]
             print('进入“检查对象核查”iframe')
         except Exception as e:
             print('找不到“检查对象核查”窗口')
@@ -153,15 +122,22 @@ class AuditedListAutomation:
             exit(0)
 
     def goto_core_frame(self, sleep_time=2):
-        self.frame_of_mission_list()
-        self.frame_of_inside_mission()
+        self.goto_audited_list_frame()
         time.sleep(sleep_time)
-        self.switch_to_audit_list_and_filter()
         self.frame_of_audit_result_page()
 
     def get_shop_url(self):
         shop_url = self.b.find_element_by_id('shopUrl')
         print(shop_url.get_attribute('value'))
+
+    # the icon is in the parent frame of the audit frame
+    def click_close_audit_icon(self):
+        try:
+            self.b.find_element_by_xpath("//a[@class='layui-layer-close']").click()
+        except selenium.common.exceptions.NoSuchElementException:
+            print(130)
+            self.b.switch_to.parent_frame()
+            self.b.find_element_by_xpath("//a[@class='layui-layer-close']").click()
 
     def click_open_shop_url(self):
         self.b.find_element_by_link_text("打开网页").click()
@@ -170,16 +146,20 @@ class AuditedListAutomation:
         try:
             self.b.find_element_by_link_text("确定核对").click()
         except selenium.common.exceptions.NoSuchElementException:
-            self.goto_core_frame(0.1)
+            self.goto_core_frame(1)
+            print(149)
             self.b.find_element_by_link_text("确定核对").click()
 
     def click_confirm(self):
         try:
-            self.b.find_element_by_link_text("确定").click()
-        except selenium.common.exceptions.NoSuchElementException:
-            self.goto_core_frame(0.1)
+            self.goto_core_frame(1)
             self.b.switch_to.parent_frame()
-            self.b.find_element_by_link_text("确定").click()
+            self.b.find_element_by_xpath("//a[contains(@class, 'layui')][text()='确定']").click()
+        except Exception as e:
+            print(157, end=':')
+            print(e)
+
+            
 
     def close_other_windows(self):
         for handle in self.b.window_handles:
