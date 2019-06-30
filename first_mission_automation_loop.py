@@ -1,7 +1,8 @@
-from wj_automation_main import WangJianAutomation
+from wj_selenium_main import first_todo_mission_automation as first_todo_auto
+import time
 
 if __name__ == "__main__":
-    auto = WangJianAutomation()
+    auto = first_todo_auto()
     auto.connect_to_existing_chrome()
 
     choice = ''
